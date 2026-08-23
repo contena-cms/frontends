@@ -1,0 +1,488 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+
+import json5 from "json5";
+import { ofetch } from "ofetch";
+import openapiTS, {
+  astToString,
+  transformSchemaObjectWithComposition,
+} from "openapi-typescript";
+// read .env file and load it into process.env
+import "dotenv/config";
+import type { OpenAPI3, SchemaObject } from "openapi-typescript";
+import c from "picocolors";
+import ts from "typescript";
+
+import { formatSource } from "../formatSource";
+import type { TransformedElements } from "../generateFile";
+import {
+  displayPatchingSummary,
+  getApiTypeConfig,
+  loadApiGenConfig,
+  loadJsonOverrides,
+  resolveSinglePath,
+} from "../jsonOverrideUtils";
+import { extendedDefu, patchJsonSchema } from "../patchJsonSchema";
+import { processAstSchemaAndOverrides } from "../processAstSchemaAndOverrides";
+import { transformOpenApiTypes } from "../transformOpenApiTypes";
+import { transformSchemaTypes } from "../transformSchemaTypes";
+
+const customFieldsTypes = `type CustomFields = { [key: string]: CustomFieldValue };
+type CustomFieldValue = null | string | string[] | number | boolean | CustomFieldValue[] | { [key: string]: CustomFieldValue };`;
+
+/**
+ * Generate schema from your API instance
+ */
+export async function generate(args: {
+  /**
+   * Current working directory
+   */
+  cwd: string;
+  /**
+   * Filename of the schema to process, default is `storeApiSchema.json` or `adminApiSchema.json` depending on the `apiType` parameter
+   */
+  filename?: string;
+  /**
+   * Type of the API to generate types for
+   */
+  apiType: "store" | "admin";
+  /**
+   * Debug mode, display additional information and generates additional files, not needed for the regular usage
+   */
+  debug: boolean;
+  /**
+   * Log patches, display information about applied patches while generating types
+   */
+  logPatches: boolean;
+}) {
+  const inputFilename = args.filename
+    ? args.filename
+    : `${args.apiType}ApiSchema.json`;
+
+  try {
+    const start = performance.now();
+    const outputFilename = inputFilename.replace(".json", ".d.ts");
+
+    const fullInputFilePath = join(args.cwd, "api-types", inputFilename);
+    const fullOutputFilePath = join(args.cwd, "api-types", outputFilename);
+
+    const resolvedSchema = await resolveSinglePath<OpenAPI3>(inputFilename);
+
+    if (!resolvedSchema && !args.apiType) {
+      console.log(
+        c.yellow(
+          `Schema file ${c.bold(
+            fullInputFilePath,
+          )} does not exist. Check whether the file is created (use ${c.bold(
+            "loadSchema",
+          )} command first).`,
+        ),
+      );
+      process.exit(1);
+    }
+
+    let schema = "";
+    let processedSchemaAst: TransformedElements;
+    let apiVersion = "unknown";
+
+    if (resolvedSchema) {
+      // Apply patches
+      const schemaForPatching = structuredClone(resolvedSchema);
+      apiVersion = schemaForPatching?.info?.version;
+
+      const configJSON = await loadApiGenConfig({
+        silent: true, // we allow to not have the config file in this command
+      });
+      const apiTypeConfig = getApiTypeConfig(configJSON, args.apiType);
+      const jsonOverrides = await loadJsonOverrides({
+        paths: apiTypeConfig.patches,
+        apiType: args.apiType,
+      });
+
+      if (args.debug) {
+        // save overrides to file
+        const overridesFilePath = join(
+          args.cwd,
+          "api-types",
+          `${args.apiType}ApiTypes.overrides-result.json`,
+        );
+        writeFileSync(
+          overridesFilePath,
+          json5.stringify(jsonOverrides, null, 2),
+        );
+        console.log(
+          `[DEBUG] Check the overrides result in: ${c.bold(overridesFilePath)} file.`,
+        );
+      }
+
+      const {
+        patchedSchema,
+        todosToFix,
+        outdatedPatches,
+        alreadyApliedPatches,
+      } = patchJsonSchema({
+        openApiSchema: schemaForPatching,
+        jsonOverrides,
+      });
+
+      const originalSchema = structuredClone(resolvedSchema);
+      console.log("schema", originalSchema.info);
+
+      displayPatchingSummary({
+        todosToFix,
+        outdatedPatches,
+        alreadyApliedPatches,
+        displayPatchedLogs: args.logPatches,
+      });
+
+      if (args.debug) {
+        // save patched schema to json file with additoinal name "debug-patched"
+        const patchedSchemaFilename = inputFilename.replace(
+          ".json",
+          ".debug-patched.json",
+        );
+        const patchedSchemaPath = join(
+          args.cwd,
+          "api-types",
+          patchedSchemaFilename,
+        );
+        writeFileSync(patchedSchemaPath, json5.stringify(patchedSchema), {
+          encoding: "utf-8",
+        });
+        console.log(
+          `[DEBUG] Check the patched schema in: ${c.bold(patchedSchemaPath)} file.`,
+        );
+      }
+
+      const astSchema = await openapiTS(patchedSchema, {
+        version: +(process.env.OPENAPI_VERSION || 3),
+        exportType: true,
+        // pathParamsAsTypes: true,
+        // rawSchema: false,
+        additionalProperties: false,
+        alphabetize: true,
+        defaultNonNullable: false,
+        arrayLength: true,
+        /**
+         * GenericRecord is used for types like associations
+         */
+        inject: `
+            type GenericRecord = never | null | string | string[] | number | { [key: string]: GenericRecord };
+            ${customFieldsTypes}
+            `,
+        transform(schemaObject, metadata) {
+          if (!schemaObject) {
+            throw new Error(`Schema object is empty at ${metadata.path}`);
+          }
+          /**
+           * Add proper `translated` types for object fields without entity fields like id, createdAt, updatedAt etc.
+           */
+          if (
+            "type" in schemaObject &&
+            "properties" in schemaObject &&
+            schemaObject.type === "object" &&
+            !!schemaObject?.properties?.translated
+          ) {
+            const notAllowedKeys = [
+              "id",
+              "createdAt",
+              "updatedAt",
+              "translated",
+              "apiAlias",
+            ];
+            const stringFields = Object.keys(schemaObject.properties).filter(
+              (key) => {
+                if (notAllowedKeys.includes(key)) return false;
+                const property = schemaObject.properties?.[key];
+                return (
+                  !!property && "type" in property && property.type === "string"
+                );
+              },
+            );
+            const stringProperties = stringFields
+              .filter((fieldKey) => !notAllowedKeys.includes(fieldKey))
+              .reduce(
+                (acc, key) => {
+                  acc[key] = {
+                    type: "string",
+                  };
+                  return acc;
+                },
+                {} as Record<string, { type: "string" }>,
+              );
+            if (Object.keys(stringProperties).length === 0) {
+              const { translated: _, ...propertiesWithoutTranslated } =
+                schemaObject.properties;
+              schemaObject.properties = propertiesWithoutTranslated;
+            } else {
+              schemaObject.required ??= [];
+              schemaObject.required.push("translated");
+              schemaObject.properties.translated = extendedDefu(
+                {
+                  additionalProperties: false,
+                },
+                schemaObject.properties.translated,
+                {
+                  type: "object",
+                  properties: stringProperties,
+                  required: stringFields,
+                },
+              ) as SchemaObject;
+            }
+            return transformSchemaObjectWithComposition(schemaObject, {
+              ...metadata,
+              ctx: {
+                ...metadata.ctx,
+                transform: runTransformations,
+              },
+            });
+          }
+
+          // run standard transform
+          return runTransformations(schemaObject, metadata);
+        },
+      });
+
+      schema = astToString(astSchema);
+      schema = normalizeCustomFieldsTypes(schema);
+
+      // clean up
+      // remove `@description ` tags
+      schema = schema.replace(/@description /g, "");
+
+      if (args.debug) {
+        writeFileSync(fullOutputFilePath, schema, {
+          encoding: "utf-8",
+        });
+        console.log(`[DEBUG]: Debug Schema saved to ${fullOutputFilePath}`);
+
+        schema = await formatSource(fullOutputFilePath, schema);
+        schema = schema.trim();
+      }
+
+      processedSchemaAst = transformOpenApiTypes(schema);
+    } else {
+      console.log(
+        c.yellow(
+          `File ${c.bold(fullInputFilePath)} does not exist. Using default schema '${args.apiType}' as a base. to change that use param --apiType=admin or --apiType=store to pick the base schema.`,
+        ),
+      );
+
+      // resolve default schema from node_modules api-client
+      const link = resolve(
+        `node_modules/@contena/api-client/api-types/${args.apiType}ApiTypes.d.ts`,
+      );
+      if (existsSync(link)) {
+        schema = readFileSync(link, {
+          encoding: "utf-8",
+        });
+      } else {
+        // falback from the github
+        // TODO: change to main branch
+        schema = await ofetch(
+          `https://raw.githubusercontent.com/contena/frontends/main/packages/api-client/api-types/${args.apiType}ApiTypes.d.ts`,
+        );
+      }
+      schema = normalizeCustomFieldsTypes(schema);
+
+      processedSchemaAst = transformSchemaTypes(schema);
+    }
+
+    if (typeof schema === "string") {
+      if (args.debug) {
+        mkdirSync(dirname(fullOutputFilePath), { recursive: true });
+        writeFileSync(fullOutputFilePath, schema, {
+          encoding: "utf-8",
+        });
+        console.log(
+          `[DEBUG] Check the generated schema in: ${c.bold(fullOutputFilePath)} file.`,
+        );
+      }
+
+      // TODO: change overrides file name to param
+      // read file "storeApiTypes.overrides.ts" if exists
+      const overridesFilepath = join(
+        args.cwd,
+        "api-types",
+        `${args.apiType}ApiTypes.overrides.ts`,
+      );
+      const fileExists = existsSync(overridesFilepath);
+      let overridesSchema = "";
+      console.error(
+        "Overrides exist:",
+        fileExists,
+        "in file",
+        overridesFilepath,
+      );
+
+      if (fileExists) {
+        overridesSchema = readFileSync(overridesFilepath, {
+          encoding: "utf-8",
+        });
+      }
+
+      await processAstSchemaAndOverrides(
+        processedSchemaAst,
+        overridesSchema,
+        args.apiType,
+        {
+          version: apiVersion,
+        },
+      );
+    } else {
+      throw new Error("Schema is not a string");
+    }
+
+    const stop = performance.now();
+    const time = Math.round(stop - start);
+    console.log(
+      c.green(
+        `Types generated in ${c.bold(join("api-types", `${args.apiType}ApiTypes.d.ts`))} (took ${time}ms)`,
+      ),
+    );
+  } catch (error) {
+    console.error(
+      c.red(
+        "Error while generating types. Checkout the OpenAPI Schema and try again.\n",
+      ),
+      error,
+    );
+    process.exit(1);
+  }
+}
+
+export function runTransformations(
+  schemaObject: SchemaObject,
+  metadata?: { path?: string | string[] },
+) {
+  const constLiteralType = createConstLiteralType(schemaObject);
+  if (constLiteralType) {
+    return constLiteralType;
+  }
+
+  /**
+   * Blob type is used for binary data
+   */
+  if (schemaObject.format === "binary") {
+    return ts.factory.createTypeReferenceNode(
+      ts.factory.createIdentifier("Blob"),
+    );
+  }
+
+  if (isCustomFieldsSchema(metadata)) {
+    return ts.factory.createUnionTypeNode([
+      ts.factory.createTypeReferenceNode(
+        ts.factory.createIdentifier("CustomFields"),
+      ),
+      ts.factory.createLiteralTypeNode(ts.factory.createNull()),
+    ]);
+  }
+
+  /**
+   * We're changing "object" declarations into "GenericRecord" to allow recursive types like `associations`
+   */
+  if (
+    // for object types
+    schemaObject.type === "object" &&
+    // without properties, items, anyOf, allOf
+    !(schemaObject as { properties?: object }).properties &&
+    !(schemaObject as { items?: [] }).items &&
+    !(schemaObject as { anyOf?: [] }).anyOf &&
+    !(schemaObject as { allOf?: [] }).allOf &&
+    !(schemaObject as { additionalProperties?: object }).additionalProperties &&
+    !(schemaObject as { $ref?: [] }).$ref
+  ) {
+    return ts.factory.createTypeReferenceNode(
+      ts.factory.createIdentifier("GenericRecord"),
+    );
+  }
+
+  return undefined;
+}
+
+function createConstLiteralType(schemaObject: SchemaObject) {
+  if (!("const" in schemaObject)) {
+    return undefined;
+  }
+
+  const constValue = schemaObject.const;
+
+  if (hasSchemaType(schemaObject, "string")) {
+    return ts.factory.createLiteralTypeNode(
+      ts.factory.createStringLiteral(String(constValue)),
+    );
+  }
+
+  if (constValue === null) {
+    return ts.factory.createLiteralTypeNode(ts.factory.createNull());
+  }
+
+  if (typeof constValue === "string") {
+    return ts.factory.createLiteralTypeNode(
+      ts.factory.createStringLiteral(constValue),
+    );
+  }
+
+  if (typeof constValue === "number" && Number.isFinite(constValue)) {
+    const numericLiteral = ts.factory.createNumericLiteral(
+      Math.abs(constValue),
+    );
+
+    return ts.factory.createLiteralTypeNode(
+      constValue < 0
+        ? ts.factory.createPrefixUnaryExpression(
+            ts.SyntaxKind.MinusToken,
+            numericLiteral,
+          )
+        : numericLiteral,
+    );
+  }
+
+  if (typeof constValue === "boolean") {
+    return ts.factory.createLiteralTypeNode(
+      constValue ? ts.factory.createTrue() : ts.factory.createFalse(),
+    );
+  }
+
+  return undefined;
+}
+
+function hasSchemaType(schemaObject: SchemaObject, type: string) {
+  return Array.isArray(schemaObject.type)
+    ? (schemaObject.type as readonly string[]).includes(type)
+    : schemaObject.type === type;
+}
+
+function isCustomFieldsSchema(metadata?: { path?: string | string[] }) {
+  const path = Array.isArray(metadata?.path)
+    ? metadata.path.join("/")
+    : metadata?.path;
+
+  return (
+    typeof path === "string" &&
+    (path.endsWith("/customFields") ||
+      path.endsWith(".customFields") ||
+      path.includes("/properties/customFields"))
+  );
+}
+
+export function normalizeCustomFieldsTypes(schema: string) {
+  const normalizedSchema = schema
+    .replace(
+      /\bcustomFields\?: GenericRecord;/g,
+      "customFields?: CustomFields | null;",
+    )
+    .replace(
+      /\bcustomFields\?: string;/g,
+      "customFields?: CustomFields | null;",
+    );
+
+  if (normalizedSchema.includes("type CustomFields =")) {
+    return normalizedSchema;
+  }
+
+  return normalizedSchema.replace(
+    /(type GenericRecord =[\s\S]*?\{ \[key: string\]: GenericRecord \};)/,
+    `$1\n${customFieldsTypes}`,
+  );
+}

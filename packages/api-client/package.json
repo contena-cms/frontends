@@ -1,0 +1,88 @@
+{
+  "name": "@contena/api-client",
+  "version": "1.5.1",
+  "description": "Contena client for API connection.",
+  "author": "Contena",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contena/frontends.git"
+  },
+  "homepage": "https://developer.contena.cn/frontends/packages/api-client.html",
+  "keywords": [
+    "contena",
+    "api",
+    "client"
+  ],
+  "bugs": {
+    "url": "https://github.com/contena/frontends/issues"
+  },
+  "license": "Apache-2.0",
+  "module": "./dist/index.mjs",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "api-types",
+    "admin-api-types",
+    "NOTICE",
+    "THIRD-PARTY-LICENSES"
+  ],
+  "exports": {
+    ".": {
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      },
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      }
+    },
+    "./helpers": {
+      "require": {
+        "types": "./dist/helpers.d.cts",
+        "default": "./dist/helpers.cjs"
+      },
+      "import": {
+        "types": "./dist/helpers.d.mts",
+        "default": "./dist/helpers.mjs"
+      }
+    },
+    "./api-types": "./api-types/storeApiTypes.d.ts",
+    "./store-api-types": "./api-types/storeApiTypes.d.ts",
+    "./admin-api-types": "./api-types/adminApiTypes.d.ts"
+  },
+  "scripts": {
+    "build": "export NODE_ENV=production && unbuild && pnpm build:types",
+    "build:types": "tsgo --project tsconfig.build.json --declaration --emitDeclarationOnly --outDir ./temp --skipLibCheck",
+    "dev": "export NODE_ENV=development && unbuild --stub",
+    "lint": "oxlint . && oxfmt --check .",
+    "lint:fix": "oxlint --fix . && oxfmt --write . && pnpm typecheck",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run --typecheck",
+    "test:e2e": "vitest run --typecheck --include '**/*.e2e.test.ts'",
+    "test:bench": "vitest bench",
+    "test:watch": "vitest --typecheck",
+    "load-schema": "esno ../api-gen/src/cli.ts loadSchema --apiType=store",
+    "load-admin-schema": "esno ../api-gen/src/cli.ts loadSchema --apiType=admin",
+    "generate-types": "esno ../api-gen/src/cli.ts generate --apiType=store",
+    "generate-admin-types": "esno ../api-gen/src/cli.ts generate --apiType=admin"
+  },
+  "devDependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260205.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "fflate": "0.8.3",
+    "h3": "1.15.11",
+    "happy-dom": "20.11.1",
+    "listhen": "1.10.1",
+    "@contena/tsconfig": "workspace:*",
+    "unbuild": "3.6.1",
+    "vitest": "4.1.10"
+  },
+  "dependencies": {
+    "defu": "6.1.7",
+    "hookable": "5.5.3",
+    "ofetch": "1.5.1"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Vue Library",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "dom"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ESNext",
+    "noImplicitAny": true,
+    "outDir": "./temp",
+    "types": ["vite/client"]
+  }
+}

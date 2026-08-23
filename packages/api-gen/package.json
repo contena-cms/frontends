@@ -1,0 +1,70 @@
+{
+  "name": "@contena/api-gen",
+  "version": "1.5.1",
+  "description": "Contena CLI for API client generation.",
+  "author": "Contena",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contena/frontends.git"
+  },
+  "homepage": "https://developer.contena.cn/frontends/packages/api-client.html",
+  "keywords": [
+    "contena",
+    "api",
+    "client",
+    "cli"
+  ],
+  "bugs": {
+    "url": "https://github.com/contena/frontends/issues"
+  },
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "files": [
+    "bin",
+    "dist",
+    "api-gen.schema.json",
+    "NOTICE",
+    "THIRD-PARTY-LICENSES"
+  ],
+  "bin": {
+    "api-gen": "bin/api-gen.mjs",
+    "contena-api-gen": "bin/api-gen.mjs"
+  },
+  "scripts": {
+    "build": "unbuild",
+    "cli": "esno ./src/cli.ts",
+    "dev": "export NODE_ENV=development && unbuild --stub",
+    "lint": "oxlint . && oxfmt --check .",
+    "lint:fix": "oxlint --fix . && oxfmt --write . && pnpm run typecheck",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run --typecheck",
+    "test:bench": "vitest bench",
+    "test:watch": "vitest --typecheck"
+  },
+  "devDependencies": {
+    "@types/yargs": "17.0.35",
+    "@typescript/native-preview": "7.0.0-dev.20260205.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "json5": "2.2.3",
+    "picocolors": "1.1.1",
+    "@contena/tsconfig": "workspace:*",
+    "unbuild": "3.6.1",
+    "vitest": "4.1.10"
+  },
+  "dependencies": {
+    "@contena/api-client": "workspace:*",
+    "dotenv": "17.4.2",
+    "ofetch": "1.5.1",
+    "openapi-typescript": "7.8.0",
+    "oxfmt": "0.62.0",
+    "ts-morph": "27.0.2",
+    "typescript": "5.9.3",
+    "yargs": "18.0.0"
+  }
+}

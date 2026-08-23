@@ -1,0 +1,339 @@
+# @contena/api-client
+
+## 1.5.1
+
+### Patch Changes
+
+- [#2600](https://github.com/contena/frontends/pull/2600) [`b767721`](https://github.com/contena/frontends/commit/b767721847bf3391f9067eca7a045089fb22fce0) Thanks [@patzick](https://github.com/patzick)! - Stop adopting `ct-context-token` from publicly cacheable Store API responses. CDN hits for `cacheableReads` GETs can replay a guest token from when the entry was stored, which overwrote the logged-in session and logged users out when navigating to account pages (e.g. before `account/newsletter-recipient`).
+
+- [#2515](https://github.com/contena/frontends/pull/2515) [`978b02c`](https://github.com/contena/frontends/commit/978b02c969ca4b16f5fc1d7a953ec4cce3d98173) Thanks [@patzick](https://github.com/patzick)! - Generate `customFields` properties with a dedicated `CustomFields` type instead of the broader `GenericRecord` type.
+
+- [#2522](https://github.com/contena/frontends/pull/2522) [`33facb1`](https://github.com/contena/frontends/commit/33facb178792c8cb26b47ab984ac48c08ab4b72b) Thanks [@mkucmus](https://github.com/mkucmus)! - Fix file uploads and other binary requests. The client no longer forces the default `Content-Type: application/json` onto `FormData`, `Blob`/`File`, `URLSearchParams`, or binary/stream bodies, so the runtime can set the right content type itself (e.g. `multipart/form-data` with a boundary). Just pass the body and leave `Content-Type` alone.
+
+  On a `FormData` body the client now also drops a `Content-Type` you set yourself when it carries no `boundary`. Only the runtime knows the boundary, and it reaches the server through that header, so keeping the header made the upload arrive as unparseable bytes with no error.
+
+- [#2554](https://github.com/contena/frontends/pull/2554) [`9137475`](https://github.com/contena/frontends/commit/91374753cedb2034385f642e6af11314f2971caa) Thanks [@patzick](https://github.com/patzick)! - Make `_criteria` query encoding deterministic by pinning the gzip timestamp.
+
+- [#2526](https://github.com/contena/frontends/pull/2526) [`474d3fe`](https://github.com/contena/frontends/commit/474d3fed346816135b0c7c797990b215a8b691c0) Thanks [@mkucmus](https://github.com/mkucmus)! - Split the `createAPIClient` tests so Node and browser behavior are each tested in the right environment:
+
+  - Node (`createApiClient.test.ts`): keeps the multipart `Content-Type`, aborts with `This operation was aborted`.
+  - Browser (`createApiClient.browser.test.ts`, runs in `happy-dom`): drops the multipart `Content-Type`, aborts with `signal is aborted without reason`.
+
+  Previously a stray `@vitest-environment` comment ran the whole suite in browser mode, so the Node paths were never actually checked.
+
+## 1.5.0
+
+### Minor Changes
+
+- [#2263](https://github.com/contena/frontends/pull/2263) [`b5f7e2a`](https://github.com/contena/frontends/commit/b5f7e2a20c9dfdde1690e9006252d847f732bc0a) Thanks [@mkucmus](https://github.com/mkucmus)! - Regenerated Store API schemas from the latest backend. Removed obsolete schema patches that were fixed upstream.
+
+- [#2261](https://github.com/contena/frontends/pull/2261) [`9604f22`](https://github.com/contena/frontends/commit/9604f22678150d04c3c3156fd8ee2ce440c8c8bf) Thanks [@mkucmus](https://github.com/mkucmus)! - update admin API types to be aligned with the backend.
+
+### Patch Changes
+
+- [#2261](https://github.com/contena/frontends/pull/2261) [`9604f22`](https://github.com/contena/frontends/commit/9604f22678150d04c3c3156fd8ee2ce440c8c8bf) Thanks [@mkucmus](https://github.com/mkucmus)! - Changed `scopes` to `scope` in OAuth token request types to align with RFC 6749 and League OAuth2 server implementation.
+
+## 1.4.0
+
+### Minor Changes
+
+- [#2012](https://github.com/contena/frontends/pull/2012) [`70dcf95`](https://github.com/contena/frontends/commit/70dcf95d4370c63964d877a5cab113a53f93ca19) Thanks [@patzick](https://github.com/patzick)! - Added helper to support encoded `_criteria` field in GET query parameters.
+  Context information: https://github.com/contena/contena/issues/12388
+
+  This helper is available under the `@contena/api-client/helpers` import path.
+
+  ```typescript
+  import { encodeForQuery } from "@contena/api-client/helpers";
+
+  const criteria = {
+    page: 1,
+    limit: 10,
+    ...
+  }
+
+  const encodedCriteria = encodeForQuery(criteria);
+
+  const result = await apiClient.invoke("getProducts get /product", {
+    query: {
+      _criteria: encodedCriteria,
+    },
+  });
+  ```
+
+- [#1959](https://github.com/contena/frontends/pull/1959) [`c77daa6`](https://github.com/contena/frontends/commit/c77daa6a11e96c7f3688b16f7da010b54c7f5e8b) Thanks [@patzick](https://github.com/patzick)! - Updated default types to Contena 6.7
+
+## 1.3.0
+
+### Minor Changes
+
+- [#1865](https://github.com/contena/frontends/pull/1865) [`d016d6b`](https://github.com/contena/frontends/commit/d016d6b845bff9a148405a74dae88d7fc81ec99c) Thanks [@patzick](https://github.com/patzick)! - Added new methods to manage API client base configuration:
+
+  - `updateBaseConfig`: Allows updating baseURL and accessToken in a single call
+  - `getBaseConfig`: Returns current baseURL and accessToken values
+
+  This change replaces the previous `updateBaseUrl` method with a more flexible configuration management system that can be extended in the future.
+
+### Patch Changes
+
+- [#1801](https://github.com/contena/frontends/pull/1801) [`a7ff606`](https://github.com/contena/frontends/commit/a7ff60681d1a164d5c9f2020c506262e96fad5dc) Thanks [@joostaasman](https://github.com/joostaasman)! - fix: Undefined mergedHeaders["content-type"] when content-type is multipart/form-data
+
+- [#1865](https://github.com/contena/frontends/pull/1865) [`d016d6b`](https://github.com/contena/frontends/commit/d016d6b845bff9a148405a74dae88d7fc81ec99c) Thanks [@patzick](https://github.com/patzick)! - Added `onRequest` hook to the API client that is triggered before each request is made. This hook provides access to the request context, allowing for request inspection and modification before it's sent.
+
+## 1.2.1
+
+### Patch Changes
+
+- [#1685](https://github.com/contena/frontends/pull/1685) [`7324620`](https://github.com/contena/frontends/commit/7324620a3f39c1b62f7cc294192a3e8b8b336d09) Thanks [@mdanilowicz](https://github.com/mdanilowicz)! - Overwrite API schemas to remove requirements from 'salutationId` property
+
+## 1.2.0
+
+### Minor Changes
+
+- [#1468](https://github.com/contena/frontends/pull/1468) [`a87bbcf`](https://github.com/contena/frontends/commit/a87bbcfa3f5aa440265b1e8f0fc72a204863befc) Thanks [@JimTacobs](https://github.com/JimTacobs)! - Added fetchOptions to both API clients to allow for base configuration of http client
+
+## 1.1.2
+
+### Patch Changes
+
+- [#1434](https://github.com/contena/frontends/pull/1434) [`938c4cf`](https://github.com/contena/frontends/commit/938c4cfe6438f0e11a34f69bc7a183f10ba7f381) Thanks [@quando1910](https://github.com/quando1910)! - set authentication header instead of appending, when session has expired and is being refreshed
+
+## 1.1.1
+
+### Patch Changes
+
+- [#1425](https://github.com/contena/frontends/pull/1425) [`8df7651`](https://github.com/contena/frontends/commit/8df76511c8afca78c79fe3f009ed32d207913f86) Thanks [@quando1910](https://github.com/quando1910)! - - fix: override header value when invoke adminApiClient and storeAPiClient
+
+## 1.1.0
+
+### Minor Changes
+
+- [#1371](https://github.com/contena/frontends/pull/1371) [`0643174`](https://github.com/contena/frontends/commit/06431743162c088d46cf1e6305332bd51542eec4) Thanks [@patzick](https://github.com/patzick)! - New `onDefaultHeaderChanged` hook in store and admin client. This allows to track the default headers changes. Additionally manual change of the default header will also invoke this hook.
+
+### Patch Changes
+
+- [#1365](https://github.com/contena/frontends/pull/1365) [`6abe9ab`](https://github.com/contena/frontends/commit/6abe9abb64b9d2fe94d565393b1c08ec68b58162) Thanks [@patzick](https://github.com/patzick)! - Updated default API schema definitions to 6.6.6.0
+
+- [#1339](https://github.com/contena/frontends/pull/1339) [`266bb32`](https://github.com/contena/frontends/commit/266bb32e119d7e1b3df7e082fb0fe4b0a475af44) Thanks [@mdanilowicz](https://github.com/mdanilowicz)! - Updated default schema to version `6.6.6.0`
+
+- [#1405](https://github.com/contena/frontends/pull/1405) [`f9fb243`](https://github.com/contena/frontends/commit/f9fb243d56d05a66ca4efd277c137e2ae8967f7b) Thanks [@patzick](https://github.com/patzick)! - updated default API schema definitions
+
+- [#1316](https://github.com/contena/frontends/pull/1316) [`15bebee`](https://github.com/contena/frontends/commit/15bebee0daefacc078ac99fea8725b95fdbc1cc7) Thanks [@mkucmus](https://github.com/mkucmus)! - Extend Criteria type in exported admin API schema
+
+- [#1323](https://github.com/contena/frontends/pull/1323) [`ebb10eb`](https://github.com/contena/frontends/commit/ebb10eba629b3ec2c5a4a50fa12ef0b134601d6f) Thanks [@mkucmus](https://github.com/mkucmus)! - Don't send Content-Type in case of [multipart/form-data](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html).
+
+  - Ignore `Content-Type` header in browser context when `multipart/form-data` is set.
+  - _boundary_ is set by a browser automatically.
+
+  ```ts
+  // example
+
+  const formData = new FormData();
+  formData.append("file", file);
+  const addedMediaResponse = await apiClient.invoke(
+    "uploadImage post /images/upload",
+    {
+      headers: {
+        "Content-Type": "multipart/form-data", // <-- set this one
+      },
+      accept: "application/json",
+      body: formData,
+    },
+  );
+  ```
+
+  When `invoke` method of api-client gets the `headers` parameter containing `multipart/form-data` Content-Type - the header will be ignored and the responsibility will be handed over to the browser - so the `Content-Type=multipart/form-data` header will eventually be sent, but including a dynamic _boundary_ params added by the browser on the fly.
+
+## 1.0.2
+
+### Patch Changes
+
+- [#1089](https://github.com/contena/frontends/pull/1089) [`db7c93f`](https://github.com/contena/frontends/commit/db7c93ff8cbb581221c11a492e77068af8faa8d6) Thanks [@mkucmus](https://github.com/mkucmus)! - Migrate eslint config to flat format
+
+- [#1074](https://github.com/contena/frontends/pull/1074) [`b688163`](https://github.com/contena/frontends/commit/b68816391ee8ed1ac94a6462a2a016d708f259b4) Thanks [@mkucmus](https://github.com/mkucmus)! - Update default schemas' `translated` properties as required
+
+## 1.0.1
+
+### Patch Changes
+
+- [#1078](https://github.com/contena/frontends/pull/1078) [`19f2800`](https://github.com/contena/frontends/commit/19f28003cf937bcb630257cb7cfd2bd131b7cf9d) Thanks [@patzick](https://github.com/patzick)! - Patch for missing `ct-include-seo-url` in OpenAPI schema.
+
+## 1.0.0
+
+### Major Changes
+
+- [#871](https://github.com/contena/frontends/pull/871) [`1566f7a`](https://github.com/contena/frontends/commit/1566f7a3962c511b5c72e12a4a5db40c4aa5d198) Thanks [@patzick](https://github.com/patzick)! - Read more about new major release: https://github.com/contena/frontends/discussions/965
+
+- [#1056](https://github.com/contena/frontends/pull/1056) [`c729e70`](https://github.com/contena/frontends/commit/c729e7014c70d7f71edf5297104065d18e482e04) Thanks [@patzick](https://github.com/patzick)! - Removed deprecations from the code:
+  - `onContextChanged` function inside `createAPIClient` method. Use `apiClient.hook("onContextChanged", ...)` instead.
+  - `apiType` flag from the `createAPIClient`. Use separate methods to create store and admin api clients
+  - `onAuthChange` from the `createAdminAPIClient`. Use `adminApiClient.hook('onAuthChange',...)` instead
+
+### Minor Changes
+
+- [#1039](https://github.com/contena/frontends/pull/1039) [`2343012`](https://github.com/contena/frontends/commit/2343012ad552b06557e6715055b3abc534fa2fae) Thanks [@patzick](https://github.com/patzick)! - We're exposing `fetchOptions` inside params of `invoke` method. You can now use `ofetch` features like `timeout` or `signal` with AbortController
+
+  Example for the AbortController:
+
+  ```ts
+  const controller = new AbortController();
+
+  const request = client.invoke("readContext get /context", {
+    fetchOptions: {
+      signal: controller.signal,
+    },
+  });
+
+  controller.abort(); // At this point client will throw an error with the information, that the request has been cancelled
+  ```
+
+- [#560](https://github.com/contena/frontends/pull/560) [`9643e56`](https://github.com/contena/frontends/commit/9643e56dafba9282b75c12c96b2afb3a4738f86e) Thanks [@patzick](https://github.com/patzick)! - [createAdminAPIClient] ability to pass optional field `credentials` to be used as authentication method before invoking any Admin API endpoint.
+
+- [#639](https://github.com/contena/frontends/pull/639) [`d60d062`](https://github.com/contena/frontends/commit/d60d0620c7114a2f26bb2faf24241e2cbabc8798) Thanks [@patzick](https://github.com/patzick)! - Management of defaultHeaders. You can now set them on apiClient init or runtime.
+
+  ```ts
+  const apiClient = createApiClient({
+    ...,
+    defaultHeaders: {
+      'ct-language-id': 'my-id',
+    },
+  });
+
+  console.log('Debug default headers:', apiClient.defaultHeaders);
+
+  // Change header runtime
+  apiClient.defaultHeaders['ct-language-id'] = 'my-new-id';
+
+  // Remove header runtime
+  apiClient.defaultHeaders['ct-language-id'] = "";
+
+  // Change multiple headers runtime
+  apiClient.defaultHeaders.apply({
+    'ct-language-id': 'another-id',
+    'ct-currency-id': 'currency-id',
+  })
+  ```
+
+- [#857](https://github.com/contena/frontends/pull/857) [`864616f`](https://github.com/contena/frontends/commit/864616f0c9e1cbe11e434b9a04a35ff9520bcb3c) Thanks [@mdanilowicz](https://github.com/mdanilowicz)! - Add error and success callbacks
+
+### Patch Changes
+
+- [#787](https://github.com/contena/frontends/pull/787) [`782ef4d`](https://github.com/contena/frontends/commit/782ef4d417dce6e6d60992bd54f876aa4bc5f45d) Thanks [@mkucmus](https://github.com/mkucmus)! - Adjust test snapshot for Contena v6.6 response
+
+- [#567](https://github.com/contena/frontends/pull/567) [`1583a7a`](https://github.com/contena/frontends/commit/1583a7ae0d68b72fb362b625e1634e03bad68110) Thanks [@patzick](https://github.com/patzick)! - Export default API types to be compatible with the `bundler` mode resolution in `tsconfig`
+
+- [#557](https://github.com/contena/frontends/pull/557) [`97d2859`](https://github.com/contena/frontends/commit/97d2859e4dcbdc563200f2f64d1a20880b675d87) Thanks [@patzick](https://github.com/patzick)! - Added `Accept: application/json` default header to get only JSON responses.
+
+- [`89a97a4`](https://github.com/contena/frontends/commit/89a97a45ae4a58616e41f63e9884a2a67f0a6ce8) Thanks [@patzick](https://github.com/patzick)! - fix default types
+
+## 0.5.0
+
+### Minor Changes
+
+- [#435](https://github.com/contena/frontends/pull/435) [`a4483ed8`](https://github.com/contena/frontends/commit/a4483ed8bf9370e87aedeb81846fe9d31880b3e0) Thanks [@patzick](https://github.com/patzick)! - Changed types imports to `import type {...} from "..."`
+
+### Patch Changes
+
+- [#443](https://github.com/contena/frontends/pull/443) [`33d54db1`](https://github.com/contena/frontends/commit/33d54db1bd66146a14781c45b1124547f4276866) Thanks [@patzick](https://github.com/patzick)! - `invoke` method parameters are no longer mandatory when no parameters are defined inside route.
+
+  Now instead of:
+
+  ```ts
+  const result = await apiInstance.invoke("readContext get /context", {});
+  ```
+
+  you can do:
+
+  ```ts
+  const result = await apiInstance.invoke("readContext get /context");
+  ```
+
+## 0.4.0
+
+### Minor Changes
+
+- [#371](https://github.com/contena/frontends/pull/371) [`83c94e9b`](https://github.com/contena/frontends/commit/83c94e9bb609533c4a1275cbf3822b0fc2ea1dd5) Thanks [@patzick](https://github.com/patzick)! - New method `createAdminAPIClient` supporting Admin API 🅰🅿🅸
+
+- [#373](https://github.com/contena/frontends/pull/373) [`5510bb02`](https://github.com/contena/frontends/commit/5510bb028b1fea4c63d677850f50bb7b5a1cf01a) Thanks [@patzick](https://github.com/patzick)! - Added `getSessionData` and `setSessionData` methods in admin API client for test purposes.
+
+### Patch Changes
+
+- [#385](https://github.com/contena/frontends/pull/385) [`5d7e7973`](https://github.com/contena/frontends/commit/5d7e7973437a4d74d19ec2fa0765c6d927bf8b2a) Thanks [@patzick](https://github.com/patzick)! - Dependency changes:
+
+  - Changed dependency _ofetch_ from **^1.2.1** to **^1.3.3**
+
+- [#375](https://github.com/contena/frontends/pull/375) [`bd88d6fa`](https://github.com/contena/frontends/commit/bd88d6fa95de2b90f8a1e08e34159b46c5932b3b) Thanks [@patzick](https://github.com/patzick)! - Dependency changes:
+
+  - Changed dependency _ofetch_ from **^1.1.1** to **^1.2.1**
+
+- [`15d6e696`](https://github.com/contena/frontends/commit/15d6e69616bd9bc5ad32f2a5f697e00c45a94784) Thanks [@patzick](https://github.com/patzick)! - Emit cjs bundle
+
+- [#371](https://github.com/contena/frontends/pull/371) [`83c94e9b`](https://github.com/contena/frontends/commit/83c94e9bb609533c4a1275cbf3822b0fc2ea1dd5) Thanks [@patzick](https://github.com/patzick)! - Deprecated `apiType` param in `createAPIClient`, for Admin API client use `createAdminAPIClient` instead.
+
+## 0.3.0
+
+### Minor Changes
+
+- [#330](https://github.com/contena/frontends/pull/330) [`3683116`](https://github.com/contena/frontends/commit/3683116588a7ef75e750fc33deee119f038c88e8) Thanks [@mdanilowicz](https://github.com/mdanilowicz)! - Add `setCurrentCountry` for changing context countryId
+
+## 0.2.1
+
+### Patch Changes
+
+- [#339](https://github.com/contena/frontends/pull/339) [`b2fe2bc`](https://github.com/contena/frontends/commit/b2fe2bc84bc4f3381bc16b9216a935f3c317b0d4) Thanks [@patzick](https://github.com/patzick)! - Query param arrays. This fixes the way how query params are serialized. Previously, array query params were serialized as `?ids=1&ids=2`, now they are serialized as `?ids[]=1&ids[]=2`. This is the proper way of serialization in the Contena API.
+  The definition of the endpoints hasn't changed, so you don't need to change anything in your code.
+
+- [#320](https://github.com/contena/frontends/pull/320) [`8e499e3`](https://github.com/contena/frontends/commit/8e499e35b3a1a7dc4d1382f8f99b8fc3426e4ac9) Thanks [@mkucmus](https://github.com/mkucmus)! - Prevent setting "null" or "undefined" as token on session init
+
+## 0.2.0
+
+### Minor Changes
+
+- [#316](https://github.com/contena/frontends/pull/316) [`589c09c`](https://github.com/contena/frontends/commit/589c09cdd9dee0db172c371afc5ecd740bdb4723) Thanks [@patzick](https://github.com/patzick)! - Improved error handling. Api client now throws `ApiClientError` with detailed information about what went wrong with request.
+
+  example:
+
+  ```typescript
+  import { ApiClientError } from "@contena/api-client";
+
+  try {
+    // ... your request
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      console.error(error); // This prints message summary
+      console.error("Details:", error.details); // Raw response from API
+    } else {
+      console.error("==>", error); // Another type of error, not recognized by API client
+    }
+  }
+  ```
+
+### Patch Changes
+
+- [#303](https://github.com/contena/frontends/pull/303) [`aeb639a`](https://github.com/contena/frontends/commit/aeb639a3244f812c275145345618e5bc0045be0d) Thanks [@patzick](https://github.com/patzick)! - Improved linting in packages. Types should be more reliable
+
+## 0.1.0
+
+### Minor Changes
+
+- [#300](https://github.com/contena/frontends/pull/300) [`da347b5`](https://github.com/contena/frontends/commit/da347b548aea93afaab1cc9ebab63f732ecdb964) Thanks [@patzick](https://github.com/patzick)! - Predefining methods: exported `RequestReturnType ` and `RequestParameters` types. You can now create predefined methods:
+
+  ```typescript
+  const readCart = (params: RequestParameters<"readCart", operations>) =>
+    apiInstance.invoke("readCart get /checkout/cart?name", params);
+  ```
+
+### Patch Changes
+
+- [#295](https://github.com/contena/frontends/pull/295) [`23a0a53`](https://github.com/contena/frontends/commit/23a0a532410990c0075ea7fff622949ccdecfd49) Thanks [@patzick](https://github.com/patzick)! - bump dependencies
+
+## 0.0.3
+
+### Patch Changes
+
+- [#290](https://github.com/contena/frontends/pull/290) [`9562a8a`](https://github.com/contena/frontends/commit/9562a8add35751093d766017abba474f0ad578f8) Thanks [@patzick](https://github.com/patzick)! - ship api-types with package
+
+## 0.0.2
+
+### Patch Changes
+
+- [`4c41514`](https://github.com/contena/frontends/commit/4c41514f44f0c0769fe82bfea2ea9ad34519b9cd) Thanks [@patzick](https://github.com/patzick)! - updated links to docs

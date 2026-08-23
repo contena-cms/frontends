@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md"]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore: ["**.md"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Verify package archives
+        run: |
+          pnpm --filter @contena/api-client pack --dry-run
+          pnpm --filter @contena/api-gen pack --dry-run

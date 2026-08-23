@@ -1,0 +1,27 @@
+name: Check PR title
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check semantic PR title
+        uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check PR title length
+        uses: actions/github-script@v7
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        with:
+          script: |
+            if (/\.\.\.$/.test(process.env.TITLE)) {
+              throw new Error('The PR title cannot end with "...". Please shorten it.');
+            }

@@ -1,0 +1,99 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "patchSource": {
+      "type": "string",
+      "anyOf": [
+        {
+          "format": "url"
+        },
+        {
+          "format": "file-path"
+        },
+        {
+          "const": "storeApiSchema.overrides.json",
+          "description": "Clean core Store API Schema patches"
+        },
+        {
+          "const": "storeApiSchema.b2b.overrides.json",
+          "description": "B2B module patches"
+        },
+        {
+          "const": "adminApiSchema.overrides.json",
+          "description": "Admin API Schema patches"
+        }
+      ]
+    },
+    "rulesArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "anyOf": [
+          {
+            "const": "COMPONENTS_API_ALIAS",
+            "description": "Enforce proper apiAlias fields on components"
+          }
+        ]
+      }
+    },
+    "patchesConfig": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/patchSource"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/patchSource"
+          }
+        }
+      ]
+    },
+    "apiTypeConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "description": "Validation rules to apply for this API type",
+          "allOf": [{ "$ref": "#/$defs/rulesArray" }]
+        },
+        "patches": {
+          "description": "Path to a file or files containing patches to apply to the schema",
+          "allOf": [{ "$ref": "#/$defs/patchesConfig" }]
+        }
+      }
+    }
+  },
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "anyOf": [
+        {
+          "format": "url"
+        },
+        {
+          "format": "file-path"
+        }
+      ]
+    },
+    "store-api": {
+      "description": "Configuration specific to Store API type generation",
+      "allOf": [{ "$ref": "#/$defs/apiTypeConfig" }]
+    },
+    "admin-api": {
+      "description": "Configuration specific to Admin API type generation",
+      "allOf": [{ "$ref": "#/$defs/apiTypeConfig" }]
+    },
+    "rules": {
+      "deprecated": true,
+      "description": "DEPRECATED: Use 'store-api.rules' or 'admin-api.rules' instead.",
+      "allOf": [{ "$ref": "#/$defs/rulesArray" }]
+    },
+    "patches": {
+      "deprecated": true,
+      "description": "DEPRECATED: Use 'store-api.patches' or 'admin-api.patches' instead.",
+      "allOf": [{ "$ref": "#/$defs/patchesConfig" }]
+    }
+  }
+}

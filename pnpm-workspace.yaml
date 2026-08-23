@@ -1,0 +1,27 @@
+packages:
+  - "packages/*"
+
+# Reduce the risk of installing newly compromised packages before detection.
+minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - "@contena/*"
+  - "@typescript/native-preview"
+  - "happy-dom"
+
+overrides:
+  esbuild: ^0.28.1
+  vite: ^8.0.16
+
+shamefullyHoist: true
+autoInstallPeers: true
+strictPeerDependencies: false
+preferWorkspacePackages: true
+enablePrePostScripts: true
+preferFrozenLockfile: true
+preferOffline: true
+verifyDepsBeforeRun: false
+linkWorkspacePackages: deep
+allowBuilds:
+  esbuild: true
+  oxfmt: true
+  oxlint: true

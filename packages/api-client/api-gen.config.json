@@ -1,0 +1,10 @@
+{
+  "$schema": "../api-gen/api-gen.schema.json",
+  "store-api": {
+    "rules": ["COMPONENTS_API_ALIAS"],
+    "patches": [
+      "storeApiSchema.overrides.json",
+      "storeApiSchemaCommercial.overrides.json"
+    ]
+  }
+}

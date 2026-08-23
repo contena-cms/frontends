@@ -1,0 +1,172 @@
+{
+  "components": {
+    "ProductJsonApi": [
+      {
+        "allOf": [
+          {
+            "required": ["options"],
+            "properties": {
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["group", "option", "translated"],
+                  "properties": {
+                    "group": { "type": "string" },
+                    "option": { "type": "string" },
+                    "translated": {
+                      "type": "object",
+                      "properties": {
+                        "group": { "type": "string" },
+                        "option": { "type": "string" }
+                      },
+                      "required": ["group", "option"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "CtPaypalVaultToken": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "identifier": {
+          "type": "string"
+        }
+      }
+    },
+    "LineItem": {
+      "required": ["cover"],
+      "properties": {
+        "cover": {
+          "oneOf": [
+            { "$ref": "#/components/schemas/Media" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "CustomerGroup": {
+      "properties": {
+        "translated": {
+          "type": "object",
+          "properties": {
+            "registrationOnlyCompanyRegistration": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/checkout/cart/line-item": {
+      "post": [
+        {
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["items"],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": ["id", "type", "quantity"],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "referencedId": {
+                                "type": "string"
+                              },
+                              "quantity": {
+                                "type": "number"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "product",
+                                  "custom",
+                                  "credit",
+                                  "discount",
+                                  "container"
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "required": ["referencedId", "type"],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "referencedId": {
+                                "type": "string"
+                              },
+                              "quantity": {
+                                "type": "number"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": ["promotion"]
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "$ref": "_DELETE_"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "patch": [
+        {
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "_DELETE_",
+                  "type": "object",
+                  "required": ["items"],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": ["id", "quantity"],
+                        "properties": {
+                          "id": { "type": "string" },
+                          "quantity": { "type": "number" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "/role": {
+      "get": {
+        "requestBody": "_DELETE_"
+      }
+    }
+  }
+}
