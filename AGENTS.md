@@ -16,4 +16,4 @@ This repository contains only Contena's API client and API type generator.
 - Do not reintroduce retired product branding or retired administration prefixes in tracked text or paths.
 - Generated files in `packages/api-client/api-types` must be regenerated through `@contena/api-gen`, not edited by hand.
 - Before handing work back, run install, lint, typecheck, unit tests, build, format check, and `pnpm pack --dry-run` for both public packages.
-- Publishing is manual by default; the dispatch-only `publish.yml` workflow may publish after the maintainer supplies `NPM_TOKEN`.
+- Releases use `.changeset` and the upstream-style `.github/workflows/release.yml`; do not add direct package publishing workflows.

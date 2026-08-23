@@ -19,4 +19,4 @@ pnpm build
 pnpm format:check
 ```
 
-Run `pnpm --filter @contena/api-client pack --dry-run` and the equivalent `api-gen` command before publishing. Publishing is intentionally manual and requires user-owned npm credentials.
+Run `pnpm --filter @contena/api-client pack --dry-run` and the equivalent `api-gen` command before publishing. Releases are managed through `.changeset` and `.github/workflows/release.yml`.
