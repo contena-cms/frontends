@@ -1,6 +1,6 @@
 {
   "name": "@contena/api-gen",
-  "version": "1.5.1",
+  "version": "2.0.0",
   "description": "Contena CLI for API client generation.",
   "author": "Contena",
   "type": "module",
