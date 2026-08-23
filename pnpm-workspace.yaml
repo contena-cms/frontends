@@ -9,6 +9,10 @@ minimumReleaseAgeExclude:
   - "happy-dom"
 
 overrides:
+  "@colordx/core": 5.5.0
+  baseline-browser-mapping: 2.11.15
+  "crossws@0.4.12": 0.4.10
+  electron-to-chromium: 1.5.411
   esbuild: ^0.28.1
   vite: ^8.0.16
 
